@@ -9,13 +9,26 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
 
+  //fetching the tasks
   const fetchTasks = async () => {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks`);
-    const data = await res.json();
-    setTasks(data);
-  };
+  const params = new URLSearchParams();
 
+  if (search) params.append("search", search);
+  if (statusFilter) params.append("status", statusFilter);
+  if (priorityFilter) params.append("priority", priorityFilter);
+  if (categoryFilter) params.append("category", categoryFilter)
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks?${params}`);
+  const data = await res.json();
+  setTasks(data);
+};
+
+  //toggling (either tasks is completed or not)
   const toggleComplete = async (id: string, completed: boolean) => {
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${id}`, {
       method: "PUT",
@@ -25,6 +38,7 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
     fetchTasks();
   };
 
+  //deleting the tasks
   const deleteTask = async (id: string) => {
     const confirmed = confirm("Are you sure you want to delete this task?");
     if (!confirmed) return;
@@ -35,6 +49,7 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
     fetchTasks();
   };
 
+  //handle the editing of the tasks
   const handleEdit = async (id: string) => {
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${id}`, {
       method: "PUT",
@@ -48,18 +63,21 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
 
   useEffect(() => {
     fetchTasks();
-  }, [refreshSignal]);
+  }, [refreshSignal, search, statusFilter, priorityFilter]);
 
   const incompleteTasks = tasks.filter((task) => !task.completed);
   const completedTasks = tasks.filter((task) => task.completed);
 
   const renderTask = (task: Task) => (
+
+    //Toggling the checkbox
     <li key={task._id} className="text-black flex items-center gap-2">
       <input
         type="checkbox"
         checked={task.completed}
         onChange={() => toggleComplete(task._id!, !task.completed)}
       />
+      {/* Edit section */}
       {editingId === task._id ? (
         <>
           <input
@@ -72,6 +90,7 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
           <button onClick={() => setEditingId(null)} className="bg-gray-500 px-2 py-0.5 text-white rounded cursor-pointer">Cancel</button>
         </>
       ) : (
+        //Displaying category and priority
         <>
           <span className={task.completed ? "line-through" : ""}>{task.title}</span>
           <span
@@ -83,6 +102,26 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
           >
             {task.priority}
           </span>
+
+          {task.category && (
+            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-200 text-blue-800">
+              {task.category}
+            </span>
+          )}
+
+          {task.dueDate && (
+            <span className={`text-black ml-2 text-sm font-semibold px-2 py-0.5 rounded-full ${
+              new Date(task.dueDate).toDateString() === new Date().toDateString()
+              ? "bg-yellow-100 text-yellow-800" // today
+              : new Date(task.dueDate) < new Date()
+              ? "bg-red-100 text-red-800" // overdue
+              : "bg-green-100 text-green-800" // upcoming
+            }`}>
+              {new Date(task.dueDate).toLocaleDateString()}
+            </span>
+          )}
+
+          {/*Buttons for edit and delete */}
           <div className="flex gap-2 ml-auto">
             <button
             onClick={() => {
@@ -107,6 +146,36 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
 
   return (
     <div className="space-y-4">
+      {/* Filter Section */}
+      <div className="flex flex-col md:flex-row gap-2">
+        <input
+          type="text"
+          placeholder="Search Task..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="text-gray-500 border px-2 py-1 rounded w-full md:w-1/3"
+        />
+        <select className="text-black py-1" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+        <select className="text-black py-1" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
+          <option  value="">All Priorites</option>
+          <option  value="High">High</option>
+          <option  value="Medium">Medium</option>
+          <option  value="Low">Low</option>
+        </select>
+        <select className="text-black py-1" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+          <option value="">All Categories</option>
+          <option value="General">General</option>
+          <option value="Work">Work</option>
+          <option value="Personal">Personal</option>
+          <option value="Urgent">Urgent</option>
+        </select>
+      </div>
+
+      {/* Task lists Section */}
       <div>
         <h3 className="text-black font-bold text-lg">Pending Tasks</h3>
         <ul className="space-y-2">
