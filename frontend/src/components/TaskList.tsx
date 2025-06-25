@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { Task } from "../types/Task";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult
+} from "@hello-pangea/dnd"
 
 interface TaskListProps {
   refreshSignal?: number;
@@ -61,88 +67,147 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
     fetchTasks();
   };
 
+  //handling subtask toggle 
+  const handleSubtaskToggle = async (taskId: string, subtaskIndex: number) => {
+    const updatedTasks = [...tasks];
+    const task = updatedTasks.find((t) => t._id === taskId);
+    if (!task) return
+
+    task.subtasks[subtaskIndex].completed = !task.subtasks[subtaskIndex].completed
+    setTasks(updatedTasks);
+
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${taskId}`, {
+      method: "PUT",
+      headers: { "Content-Type" : "application/json" },
+      body: JSON.stringify({ subtasks: task.subtasks})
+    })
+  }
+  //handling drag order task
+  const handleDragEnd = async ( result: DropResult ) => {
+    if (!result.destination) return 
+
+    const updatedTasks = Array.from(tasks);
+    const [moved] = updatedTasks.splice(result.source.index, 1)
+    updatedTasks.splice(result.destination.index, 0, moved)
+
+    const reordered = updatedTasks.map((task, index) => ({...task, orderIndex: index}))
+    setTasks(reordered)
+
+    await Promise.all(
+      reordered.map((task) => 
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${task._id}`, {
+          method: "PUT",
+          headers: { "Content-type": "application/json" },
+          body: JSON.stringify({ orderIndex: task.orderIndex})
+        })
+      )
+    )
+  }
+
   useEffect(() => {
     fetchTasks();
-  }, [refreshSignal, search, statusFilter, priorityFilter]);
+  }, [refreshSignal, search, statusFilter, priorityFilter, categoryFilter]);
 
-  const incompleteTasks = tasks.filter((task) => !task.completed);
-  const completedTasks = tasks.filter((task) => task.completed);
+  //Rendering the tasks
+  const renderTask = (task: Task, index: number) => (
+    <Draggable key={task._id} draggableId={task._id!} index={index}>
+      {(provided) => (
+        <div 
+        {...provided.draggableProps}
+        {...provided.dragHandleProps}
+        ref={provided.innerRef}
+        >
+          {/* Toggling the checkbox */}
+          <li key={task._id} className="text-black flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={task.completed}
+              onChange={() => toggleComplete(task._id!, !task.completed)}
+            />
+            {/* Edit section */}
+            {editingId === task._id ? (
+              <>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="border px-2 py-1 rounded"
+                />
+                <button onClick={() => handleEdit(task._id!)} className="bg-blue-600 px-2 py-0.5 text-white rounded cursor-pointer">Save</button>
+                <button onClick={() => setEditingId(null)} className="bg-gray-500 px-2 py-0.5 text-white rounded cursor-pointer">Cancel</button>
+              </>
+            ) : (
+              //Displaying category, priority and duedate
+              <>
+                <span className={task.completed ? "line-through" : ""}>{task.title}</span>
+                <span
+                  className={`text-xs font-semibold px-2 py-0.5 rounded-full
+                    ${task.priority === "High" ? "bg-red-600 text-white" :
+                      task.priority === "Medium" ? "bg-yellow-300 text-black" :
+                      "bg-green-600 text-white"}
+                  `}
+                >
+                  {task.priority}
+                </span>
 
-  const renderTask = (task: Task) => (
+                {task.category && (
+                  <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-200 text-blue-800">
+                    {task.category}
+                  </span>
+                )}
 
-    //Toggling the checkbox
-    <li key={task._id} className="text-black flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={task.completed}
-        onChange={() => toggleComplete(task._id!, !task.completed)}
-      />
-      {/* Edit section */}
-      {editingId === task._id ? (
-        <>
-          <input
-            type="text"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            className="border px-2 py-1 rounded"
-          />
-          <button onClick={() => handleEdit(task._id!)} className="bg-blue-600 px-2 py-0.5 text-white rounded cursor-pointer">Save</button>
-          <button onClick={() => setEditingId(null)} className="bg-gray-500 px-2 py-0.5 text-white rounded cursor-pointer">Cancel</button>
-        </>
-      ) : (
-        //Displaying category and priority
-        <>
-          <span className={task.completed ? "line-through" : ""}>{task.title}</span>
-          <span
-            className={`text-xs font-semibold px-2 py-0.5 rounded-full
-              ${task.priority === "High" ? "bg-red-600 text-white" :
-                task.priority === "Medium" ? "bg-yellow-300 text-black" :
-                "bg-green-600 text-white"}
-            `}
-          >
-            {task.priority}
-          </span>
+                {task.dueDate && (
+                  <span className={`text-black ml-2 text-sm font-semibold px-2 py-0.5 rounded-full ${
+                    new Date(task.dueDate).toDateString() === new Date().toDateString()
+                    ? "bg-yellow-100 text-yellow-800" // today
+                    : new Date(task.dueDate) < new Date()
+                    ? "bg-red-100 text-red-800" // overdue
+                    : "bg-green-100 text-green-800" // upcoming
+                  }`}>
+                    {new Date(task.dueDate).toLocaleDateString()}
+                  </span>
+                )}
 
-          {task.category && (
-            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-200 text-blue-800">
-              {task.category}
+                {/*Buttons for edit and delete */}
+                <div className="flex gap-2 ml-auto">
+                  <button
+                  onClick={() => {
+                    setEditingId(task._id!);
+                    setEditTitle(task.title);
+                  }}
+                  className=" text-white px-2 py-0.5 rounded bg-green-600 cursor-pointer"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteTask(task._id!)}
+                  className="px-2 py-0.5 text-white rounded bg-red-600 cursor-pointer"
+                >
+                  Delete
+                </button>
+                </div>
+              </>
+            )}
+          </li>
+          <ul>
+            {/* subtask section */}
+        {task.subtasks?.map((sub, idx) => (
+          <li key={idx} className="pl-4 text-black">
+            <input 
+              type="checkbox" 
+              checked={sub.completed}  
+              onChange={() => handleSubtaskToggle(task._id!, idx)}
+              />
+            <span className={sub.completed ? "line-through" : ""}>
+              {sub.title}
             </span>
-          )}
-
-          {task.dueDate && (
-            <span className={`text-black ml-2 text-sm font-semibold px-2 py-0.5 rounded-full ${
-              new Date(task.dueDate).toDateString() === new Date().toDateString()
-              ? "bg-yellow-100 text-yellow-800" // today
-              : new Date(task.dueDate) < new Date()
-              ? "bg-red-100 text-red-800" // overdue
-              : "bg-green-100 text-green-800" // upcoming
-            }`}>
-              {new Date(task.dueDate).toLocaleDateString()}
-            </span>
-          )}
-
-          {/*Buttons for edit and delete */}
-          <div className="flex gap-2 ml-auto">
-            <button
-            onClick={() => {
-              setEditingId(task._id!);
-              setEditTitle(task.title);
-            }}
-            className=" text-white px-2 py-0.5 rounded bg-green-600 cursor-pointer"
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => deleteTask(task._id!)}
-            className="px-2 py-0.5 text-white rounded bg-red-600 cursor-pointer"
-          >
-            Delete
-          </button>
-          </div>
-        </>
-      )}
-    </li>
-  );
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
+  </Draggable>
+);
 
   return (
     <div className="space-y-4">
@@ -176,19 +241,39 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
       </div>
 
       {/* Task lists Section */}
-      <div>
-        <h3 className="text-black font-bold text-lg">Pending Tasks</h3>
-        <ul className="space-y-2">
-          {incompleteTasks.map(renderTask)}
-        </ul>
-      </div>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div>
+          <h3 className="text-black font-bold text-lg">Pending Tasks</h3>
+          <Droppable droppableId="tasks">
+            {(provided) => (
+              <ul 
+                className="space y-2"
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+              >
+                {tasks.filter(t => !t.completed).map(renderTask)}
+                {provided.placeholder}
+              </ul>
+            )}
+          </Droppable>
+        </div>
 
-      <div>
-        <h3 className="text-black font-bold text-lg">Completed Tasks</h3>
-        <ul className="space-y-2 text-gray-500">
-          {completedTasks.map(renderTask)}
-        </ul>
-      </div>
+        <div>
+          <h3 className="text-black font-bold text-lg">Completed Tasks</h3>
+          <ul>
+            {tasks.filter(t => t.completed).map((task, index) => (
+              <li key={task._id} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={task.completed}
+                  onChange={() => toggleComplete(task._id!, false)}
+                />
+                <span className="line-through text-gray-500">{task.title}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </DragDropContext>
     </div>
   );
 }

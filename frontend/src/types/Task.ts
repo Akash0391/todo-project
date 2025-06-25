@@ -5,5 +5,10 @@ export interface Task {
   priority?: string;
   category?: string;
   dueDate?: string;
+  subtasks: Subtask[]
 }
 
+export interface Subtask {
+  title: string;
+  completed: boolean
+}

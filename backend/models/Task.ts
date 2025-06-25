@@ -11,8 +11,15 @@ const taskSchema = new mongoose.Schema(
     },
     category: {type: String, default: "General"},
     dueDate: {type: Date},
-    reminder: {type: Date}
-  },
+    reminder: {type: Date},
+    subtasks: [
+      {
+        title: String,
+        completed: { type: Boolean, default: false}
+      }
+    ],
+    orderIndex: {type: Number, default: 0}
+  },  
   { timestamps: true }
 );
 
