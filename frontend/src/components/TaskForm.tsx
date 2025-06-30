@@ -20,25 +20,36 @@ export default function TaskForm({ onTaskAdded }: TaskFormProps) {
 
   //handle the form submission
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!title.trim()) return;
+  if (!title.trim()) return;
 
-    const filteredSubtasks = subtasks.filter(s => s.title.trim() !== "")
+  const filteredSubtasks = subtasks.filter((s) => s.title.trim() !== "");
 
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, priority, category, dueDate: dueDate ? new Date(dueDate).toISOString() : null, subtasks: filteredSubtasks }),
-    });
-
-    setTitle("");
-    setPriority("Medium");
-    setCategory("General");
-    setDueDate("")
-    setSubtasks([{title: "", completed: false}])
-    onTaskAdded(); // trigger parent to refresh task list
+  const newTask = {
+    title,
+    priority,
+    category,
+    dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+    subtasks: filteredSubtasks,
   };
+
+  await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(newTask),
+  });
+
+  // Clear form
+  setTitle("");
+  setPriority("Medium");
+  setCategory("General");
+  setDueDate("");
+  setSubtasks([{ title: "", completed: false }]);
+
+  onTaskAdded();
+};
+
 
   const handleSubtaskChange = (index: number, value: string) => {
     const updated = [...subtasks];

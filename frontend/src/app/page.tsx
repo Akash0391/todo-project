@@ -7,7 +7,7 @@ import TaskList from "@/components/TaskList";
 export default function Home() {
   const [refreshSignal, setRefreshSignal] = useState(0);
 
-  const handleTaskAdded = () => {
+  const handleTaskAdded = async () => {
     setRefreshSignal(prev => prev + 1);
   };
 

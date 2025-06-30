@@ -109,15 +109,10 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
   }, [refreshSignal, search, statusFilter, priorityFilter, categoryFilter]);
 
   //Rendering the tasks
-  const renderTask = (task: Task, index: number) => (
-    <Draggable key={task._id} draggableId={task._id!} index={index}>
-      {(provided) => (
-        <div 
-        {...provided.draggableProps}
-        {...provided.dragHandleProps}
-        ref={provided.innerRef}
-        >
-          {/* Toggling the checkbox */}
+
+  const renderTaskWithoutDrag = (task: Task, index: number) => (
+    <>
+  {/* Toggling the checkbox */}
           <li key={task._id} className="text-black flex items-center gap-2">
             <input
               type="checkbox"
@@ -204,6 +199,19 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
           </li>
         ))}
       </ul>
+    </>
+  )
+        
+
+  const renderTaskWithDrag = (task: Task, index: number) => (
+    <Draggable key={task._id} draggableId={task._id!} index={index}>
+      {(provided) => (
+        <div 
+        {...provided.draggableProps}
+        {...provided.dragHandleProps}
+        ref={provided.innerRef}
+        >
+          {renderTaskWithoutDrag(task, index)}
     </div>
   )}
   </Draggable>
@@ -251,29 +259,23 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
                 ref={provided.innerRef}
                 {...provided.droppableProps}
               >
-                {tasks.filter(t => !t.completed).map(renderTask)}
+                {tasks.filter(t => !t.completed).map(renderTaskWithDrag)}
                 {provided.placeholder}
               </ul>
             )}
           </Droppable>
         </div>
+        </DragDropContext>
 
         <div>
           <h3 className="text-black font-bold text-lg">Completed Tasks</h3>
           <ul>
             {tasks.filter(t => t.completed).map((task, index) => (
-              <li key={task._id} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={task.completed}
-                  onChange={() => toggleComplete(task._id!, false)}
-                />
-                <span className="line-through text-gray-500">{task.title}</span>
-              </li>
+              renderTaskWithoutDrag(task, index)
             ))}
           </ul>
         </div>
-      </DragDropContext>
+      
     </div>
   );
 }

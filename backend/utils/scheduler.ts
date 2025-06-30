@@ -22,7 +22,7 @@ export default function startReminderCron() {
       await reminderQueue.add({ taskId: task._id });
 
       // Optionally update to prevent duplicate enqueue
-      task.reminder = true;
+      task.reminderSent = true;
       await task.save();
     }
 
