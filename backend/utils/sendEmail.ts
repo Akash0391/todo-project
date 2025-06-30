@@ -9,12 +9,12 @@ interface EmailOptions {
 export async function sendEmail({ to, subject, text }: EmailOptions): Promise<void> {
   // Use a real SMTP service in production
   const transporter = nodemailer.createTransport({
-    host: "smtp.ethereal.email", // Ethereal is for testing (no real delivery)
+    host: "smtp.host.email", 
     port: 587,
     secure: false,
     auth: {
-      user: "your_ethereal_user", // Replace with real Ethereal credentials
-      pass: "your_ethereal_pass",
+      user: "auth_user", 
+      pass: "auth_user_pass",
     },
   });
 
