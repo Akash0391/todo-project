@@ -234,11 +234,11 @@ export default function TaskList() {
           <Droppable droppableId="tasks">
             {(provided) => (
               <ul 
-                className="space y-2"
+                className="space-y-2"
                 ref={provided.innerRef}
                 {...provided.droppableProps}
               >
-                {tasks.filter(t => !t.completed).map(renderTaskWithDrag)}
+                {tasks.filter(t => !t.completed).map((task, index) => renderTaskWithDrag(task, index))}
                 {provided.placeholder}
               </ul>
             )}

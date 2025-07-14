@@ -35,15 +35,16 @@ export const addTask = async (req: Request, res: Response) => {
 //updating the tasks
 export const updateTask = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { completed, title, priority, category, dueDate, subtasks} = req.body;
+  const { completed, title, priority, category, dueDate, subtasks, orderIndex} = req.body;
 
   const updateFields: any = {};
   if (completed !== undefined) updateFields.completed = completed;
   if (title !== undefined) updateFields.title = title;
   if (priority !== undefined) updateFields.priority = priority;
-  if (category !== undefined) updateFields.completed = completed
-  if (dueDate !== undefined) updateFields.dueDate = dueDate
-  if (subtasks !== undefined) updateFields.subtasks = subtasks
+  if (category !== undefined) updateFields.category = category;
+  if (dueDate !== undefined) updateFields.dueDate = dueDate;
+  if (subtasks !== undefined) updateFields.subtasks = subtasks;
+  if (orderIndex !== undefined) updateFields.orderIndex = orderIndex;
 
   const task = await Task.findByIdAndUpdate(id, updateFields, { new: true });
   res.json(task);
