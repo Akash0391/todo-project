@@ -48,7 +48,7 @@ const sampleTasks = [
 async function seedtasks() {
     try {
         await mongoose.connect(process.env.MONGODB_URI!)
-        console.log("Connected to database")
+        console.log("Database Connected")
 
         await Task.deleteMany();
         console.log("Old tasks removed")

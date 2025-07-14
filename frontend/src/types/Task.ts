@@ -5,7 +5,8 @@ export interface Task {
   priority?: string;
   category?: string;
   dueDate?: string;
-  subtasks: Subtask[]
+  subtasks: Subtask[];
+  orderIndex?: number;
 }
 
 export interface Subtask {

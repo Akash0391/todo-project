@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useCreateTask } from '@/hooks/useTasks'
 
 interface SubTask {
   title: string;
@@ -19,6 +20,8 @@ export default function TaskForm({ onTaskAdded }: TaskFormProps) {
 
 
   //handle the form submission
+  const createTaskMutation = useCreateTask()
+
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
@@ -30,24 +33,25 @@ export default function TaskForm({ onTaskAdded }: TaskFormProps) {
     title,
     priority,
     category,
-    dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+    dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
     subtasks: filteredSubtasks,
+    completed: false,
   };
 
-  await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(newTask),
-  });
-
-  // Clear form
-  setTitle("");
-  setPriority("Medium");
-  setCategory("General");
-  setDueDate("");
-  setSubtasks([{ title: "", completed: false }]);
-
-  onTaskAdded();
+  try {
+    await createTaskMutation.mutateAsync(newTask)
+    
+    // Clear form
+    setTitle("");
+    setPriority("Medium");
+    setCategory("General");
+    setDueDate("");
+    setSubtasks([{ title: "", completed: false }]);
+    
+    onTaskAdded();
+  } catch (error) {
+    console.error('Failed to create task:', error)
+  }
 };
 
 
@@ -146,8 +150,9 @@ export default function TaskForm({ onTaskAdded }: TaskFormProps) {
         <button
           type="submit"
           className="bg-blue-600 cursor-pointer text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={createTaskMutation.isPending}
         >
-          Add Task
+          {createTaskMutation.isPending ? 'Adding...' : 'Add Task'}
         </button>
       </form>
     </>

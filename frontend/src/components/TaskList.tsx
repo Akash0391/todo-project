@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+"use client"
+
+import { useState } from "react";
 import { Task } from "../types/Task";
 import {
   DragDropContext,
@@ -6,81 +8,65 @@ import {
   Draggable,
   DropResult
 } from "@hello-pangea/dnd"
+  import { useTasks, useUpdateTask, useDeleteTask } from "@/hooks/useTasks"
 
-interface TaskListProps {
-  refreshSignal?: number;
-}
+export default function TaskList() {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("")
+  const [priorityFilter, setPriorityFilter] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("")
 
-export default function TaskList({ refreshSignal }: TaskListProps) {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [priorityFilter, setPriorityFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  // Replace manual fetching with TanStack Query
+  const { data: tasks = [], isLoading, error } = useTasks({
+    search,
+    status: statusFilter,
+    priority: priorityFilter,
+    category: categoryFilter,
+  })
 
-  //fetching the tasks
-  const fetchTasks = async () => {
-  const params = new URLSearchParams();
+  const updateTaskMutation = useUpdateTask()
+  const deleteTaskMutation = useDeleteTask()
 
-  if (search) params.append("search", search);
-  if (statusFilter) params.append("status", statusFilter);
-  if (priorityFilter) params.append("priority", priorityFilter);
-  if (categoryFilter) params.append("category", categoryFilter)
+  // Update your handlers to use mutations:
+  const toggleComplete = (id: string, completed: boolean) => {
+    updateTaskMutation.mutate({ id, updates: { completed } })
+  }
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks?${params}`);
-  const data = await res.json();
-  setTasks(data);
-};
+  const deleteTask = (id: string) => {
+    const confirmed = confirm("Are you sure you want to delete this task?")
+    if (!confirmed) return
+    deleteTaskMutation.mutate(id)
+  }
 
-  //toggling (either tasks is completed or not)
-  const toggleComplete = async (id: string, completed: boolean) => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completed }),
-    });
-    fetchTasks();
-  };
+  const handleEdit = (id: string) => {
+    updateTaskMutation.mutate({ 
+      id, 
+      updates: { title: editTitle } 
+    })
+    setEditingId(null)
+    setEditTitle("")
+  }
 
-  //deleting the tasks
-  const deleteTask = async (id: string) => {
-    const confirmed = confirm("Are you sure you want to delete this task?");
-    if (!confirmed) return;
+  // Add loading and error states in your JSX:
+  if (isLoading) return <div className="text-gray-500">Loading tasks...</div>
+  if (error) return <div>Error: {error.message}</div>
 
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${id}`, {
-      method: "DELETE",
-    });
-    fetchTasks();
-  };
-
-  //handle the editing of the tasks
-  const handleEdit = async (id: string) => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: editTitle }),
-    });
-    setEditingId(null);
-    setEditTitle("");
-    fetchTasks();
-  };
+  // Rest of your component remains the same...
 
   //handling subtask toggle 
   const handleSubtaskToggle = async (taskId: string, subtaskIndex: number) => {
-    const updatedTasks = [...tasks];
-    const task = updatedTasks.find((t) => t._id === taskId);
+    const task = tasks.find((t) => t._id === taskId);
     if (!task) return
 
-    task.subtasks[subtaskIndex].completed = !task.subtasks[subtaskIndex].completed
-    setTasks(updatedTasks);
+    const updatedSubtasks = [...task.subtasks];
+    updatedSubtasks[subtaskIndex].completed = !updatedSubtasks[subtaskIndex].completed;
 
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${taskId}`, {
-      method: "PUT",
-      headers: { "Content-Type" : "application/json" },
-      body: JSON.stringify({ subtasks: task.subtasks})
-    })
+    updateTaskMutation.mutate({ 
+      id: taskId, 
+      updates: { subtasks: updatedSubtasks } 
+    });
   }
   //handling drag order task
   const handleDragEnd = async ( result: DropResult ) => {
@@ -91,26 +77,19 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
     updatedTasks.splice(result.destination.index, 0, moved)
 
     const reordered = updatedTasks.map((task, index) => ({...task, orderIndex: index}))
-    setTasks(reordered)
 
-    await Promise.all(
-      reordered.map((task) => 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/tasks/${task._id}`, {
-          method: "PUT",
-          headers: { "Content-type": "application/json" },
-          body: JSON.stringify({ orderIndex: task.orderIndex})
-        })
-      )
-    )
+    // Update all tasks with new order indices using TanStack Query
+    reordered.forEach((task) => {
+      updateTaskMutation.mutate({ 
+        id: task._id!, 
+        updates: { orderIndex: task.orderIndex } 
+      });
+    });
   }
-
-  useEffect(() => {
-    fetchTasks();
-  }, [refreshSignal, search, statusFilter, priorityFilter, categoryFilter]);
 
   //Rendering the tasks
 
-  const renderTaskWithoutDrag = (task: Task, index: number) => (
+  const renderTaskWithoutDrag = (task: Task) => (
     <>
   {/* Toggling the checkbox */}
           <li key={task._id} className="text-black flex items-center gap-2">
@@ -211,7 +190,7 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
         {...provided.dragHandleProps}
         ref={provided.innerRef}
         >
-          {renderTaskWithoutDrag(task, index)}
+          {renderTaskWithoutDrag(task)}
     </div>
   )}
   </Draggable>
@@ -270,8 +249,10 @@ export default function TaskList({ refreshSignal }: TaskListProps) {
         <div>
           <h3 className="text-black font-bold text-lg">Completed Tasks</h3>
           <ul>
-            {tasks.filter(t => t.completed).map((task, index) => (
-              renderTaskWithoutDrag(task, index)
+            {tasks.filter(t => t.completed).map((task) => (
+              <div key={task._id}>
+                {renderTaskWithoutDrag(task)}
+              </div>
             ))}
           </ul>
         </div>
