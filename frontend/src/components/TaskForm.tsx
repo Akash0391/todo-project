@@ -73,34 +73,35 @@ export default function TaskForm({ onTaskAdded }: TaskFormProps) {
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 mb-4">
-        {/* an input container for adding the tasks */}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-6">
+        {/* Task title input */}
         <input
           type="text"
           placeholder="Add a task...."
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="flex-1 border text-gray-500 border-gray-300 rounded px-3 py-2"
+          className="w-full border text-gray-500 border-gray-300 rounded px-3 py-2"
           required
         />
 
-        <div>
-          {/* priorities to be selected */}
+        {/* Controls row - responsive layout */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+          {/* Priority selection */}
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-2 text-black"
+            className="flex-1 border border-gray-300 rounded px-3 py-2 text-black"
           >
             <option value="High">🔴 High</option>
             <option value="Medium">🟡 Medium</option>
             <option value="Low">🟢 Low</option>
           </select>
 
-          {/* categories to be selected */}
+          {/* Category selection */}
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="border border-gray-300 px-3 py-2 ml-2 rounded text-black"
+            className="flex-1 border border-gray-300 px-3 py-2 rounded text-black"
           >
             <option value="General">General</option>
             <option value="Work">Work</option>
@@ -108,48 +109,51 @@ export default function TaskForm({ onTaskAdded }: TaskFormProps) {
             <option value="Urgent">Urgent</option>
           </select>
 
-          {/* date for completing the task */}
+          {/* Due date input */}
           <input
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="border border-gray-300 text-black w--3xl px-2 py-2 rounded ml-2"
+            className="flex-1 border border-gray-300 text-black px-3 py-2 rounded"
           />
         </div>
 
-        <div>
-          <label className="font-medium text-gray-700">Subtasks:</label>
-          {subtasks.map((subtask, index) => (
-            <div key={index} className="flex gap-2 mt-1">
-              <input
-                type="text"
-                value={subtask.title}
-                onChange={(e) => handleSubtaskChange(index, e.target.value)}
-                placeholder={`Subtask ${index+1}`}
-                className="flex-1 border border-gray-300 rounded px-2 py-1 text-black"
-              />
-              <button
-              type="button" 
-              onClick={() => removeSubtaskField(index)}
-              className="bg-red-500 text-white px-2 rounded"
-              >
-                x
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={addSubtaskField}
-            className="mt-2 text-sm text-blue-600"
-          >
-            + Add Subtask
-          </button>
+        {/* Subtasks section */}
+        <div className="border-t pt-4">
+          <label className="block font-medium text-gray-700 mb-2">Subtasks:</label>
+          <div className="space-y-2">
+            {subtasks.map((subtask, index) => (
+              <div key={index} className="flex gap-2">
+                <input
+                  type="text"
+                  value={subtask.title}
+                  onChange={(e) => handleSubtaskChange(index, e.target.value)}
+                  placeholder={`Subtask ${index+1}`}
+                  className="flex-1 border border-gray-300 rounded px-3 py-2 text-black"
+                />
+                                 <button
+                type="button" 
+                onClick={() => removeSubtaskField(index)}
+                className="task-action-btn bg-red-500 text-white px-2 sm:px-3 py-1 sm:py-2 rounded hover:bg-red-600 transition-colors min-h-[32px] min-w-[32px] text-sm"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addSubtaskField}
+              className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              + Add Subtask
+            </button>
+          </div>
         </div>
 
-        {/* add task button */}
+        {/* Submit button */}
         <button
           type="submit"
-          className="bg-blue-600 cursor-pointer text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="w-full sm:w-auto bg-blue-600 cursor-pointer text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
           disabled={createTaskMutation.isPending}
         >
           {createTaskMutation.isPending ? 'Adding...' : 'Add Task'}
