@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi } from '@/lib/api'
 import { Task } from '@/types/Task'
+import { useTaskSocket } from './useSocket'
 
 interface TaskFilters {
   search?: string
@@ -18,6 +19,9 @@ export const tasksKeys = {
 
 // Custom hooks
 export const useTasks = (filters: TaskFilters = {}) => {
+  // Enable real-time updates
+  useTaskSocket();
+  
   return useQuery({
     queryKey: tasksKeys.list(filters),
     queryFn: () => tasksApi.getTasks(filters),
